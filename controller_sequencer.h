@@ -2,7 +2,8 @@
 #define CONTROLLER_SEQUENCER_H
 
 #include "registers.h"
-#define CONTROL_WORD_SIZE 33
+#include "arithmetic_logic_unit.h"
+#define CONTROL_WORD_SIZE 30
 
 enum control_word_bits {
     //Enable puts value on WBus (lower 8 bits)
@@ -31,26 +32,29 @@ enum control_word_bits {
     Enable_SUB,
     Enable_INC,
     Enable_DEC,
-    Enbale_AND,
+    Enable_AND,
     Enable_OR,
     Enable_XOR,
     Enable_RL, //rotate left
     Enable_RR, //rotate right
-    Enable_CMA, //complement accumulator
-    Inspect_Sign,
-    Inspect_Zero,
-    Inspect_Inv //inspect is naturally looking for a high sign or zero flag, reversed when this is high
-}
+    Enable_CM, //complement accumulator
+    //    Inspect_Sign,
+    //    Inspect_Zero,
+    //    Inspect_Inv //inspect is naturally looking for a high sign or zero flag, reversed when this is high
+};
 
 typedef struct controller_sequencer
 {
     int ring_counter;
+    int *sign_signal;
+    int *zero_signal;
     reg *instruction;
 } controller_sequencer;
 
-controller_sequencer* init_controller_sequencer(reg *ins_reg);
+controller_sequencer* init_controller_sequencer(reg *ins_reg, arithmetic_logic_unit *alu);
 void del_controller_sequencer(controller_sequencer *cs);
 
+void get_control_word_fetch(controller_sequencer *cs, char *control_word);
 void get_control_word_ADD_B(controller_sequencer *cs, char *control_word);
 void get_control_word_ADD_C(controller_sequencer *cs, char *control_word);
 void get_control_word_ANA_B(controller_sequencer *cs, char *control_word);

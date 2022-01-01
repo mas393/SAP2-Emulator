@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "memory.h"
 
 memory* init_mem(int size)
@@ -14,7 +15,7 @@ void set_mem(memory *m, char *addr, char *data_in)
 {
     int block = strtol(addr, 0, 2);
     unsigned char d = strtol(data_in, 0, 2);
-    memcpy(m -> val + block, &d, 1);
+    memcpy(&(m -> vals[block]), &d, 1);
 }
 
 void get_mem(memory *m, char *addr, char *data_out)
@@ -32,7 +33,7 @@ void print_mem(memory *m, char *start_addr, int num_blocks)
     for (int i = 0; i < num_blocks; i++) {
 	// print addresses
 	printf(" ");
-	char data = m[block];
+	char data = m -> vals[block];
 	for (int j = BLOCK_SIZE - 1; j >= 0; j--) {
 	    printf("%d", (data >> j & 0x01));
 	    if (j % 4 == 0) printf(" ");

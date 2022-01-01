@@ -17,6 +17,6 @@ void get_reg(reg *r, char *bits_out, int offset);
 
 void print_reg(reg *r);
 
-void del_reg(reg *)
+void del_reg(reg *r);
 
 #endif

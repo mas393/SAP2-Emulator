@@ -14,7 +14,7 @@ memory* init_mem(int size);
 
 void set_mem(memory *m, char *addr, char *data_in);
 
-void get_mem(memory *m, char *data_out);
+void get_mem(memory *m, char *addr, char *data_out);
 
 void print_mem(memory *m, char *start_addr, int num_blocks);
 

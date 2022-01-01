@@ -25,8 +25,8 @@ void get_reg(reg *r, char *bits_out, int offset)
 {
     int s = sizeof(bits_out);
     for (int i = s - 1; i >= 0; i--)
-	bits_out[s - i - 1] = get_reg_bit(r, i - offest) ? '1': '0';
-    *(out + s) = '\0'; //not sure if needed with passing in strings
+	bits_out[s - i - 1] = get_reg_bit(r, i - offset) ? '1': '0';
+    *(bits_out + s) = '\0'; //not sure if needed with passing in strings
 }
 
 void print_reg(reg *r)
