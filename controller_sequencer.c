@@ -2,17 +2,12 @@
 #include <stdlib.h>
 #include "controller_sequencer.h"
 
-
-//TODO: implement get_control_word_CALL
-//TODO: implement get_control_word_RET
-//TODO: implement get_control_word_IN
-//TODO: implement get_control_word_OUT
-
-controller_sequencer* init_controller_sequencer(reg *ins_reg, arithmetic_logic_unit *ALU)
+controller_sequencer* init_controller_sequencer(instruction_reg *ir, arithmetic_logic_unit *ALU)
 {
     controller_sequencer *cs = (controller_sequencer*)malloc(sizeof(controller_sequencer));
     cs -> ring_counter = 0;
-    cs -> instruction = ins_reg;
+    cs -> instruction = ir -> instruction;
+    cs -> port = ir -> port;
     cs -> zero_signal = &(ALU -> zero_flag);
     cs -> sign_signal = &(ALU -> sign_flag);
     return cs;
@@ -137,10 +132,69 @@ void get_control_word_ANI(controller_sequencer *cs, char *cw)
 void get_control_word_CALL(controller_sequencer *cs, char *cw)
 {
     switch(cs -> ring_counter) {
-    default:
-	printf("Implement control_word_CALL\n");
+    case 3:
+	cw[Enable_PC] = '1';
+	cw[Load_MAR] = '1';
+	break;
+    case 4:
+	cw[C_PC] = '1';
+	break;	
+    case 5: //assuming msb then lsb in memory
+	cw[Enable_MDR] = '1';
+	cw[Load_B] = '1'; //msb of addr that is called
+	break;
+    case 6:
+	cw[Enable_PC] = '1';
+	cw[Load_MAR] = '1';
+	break;
+    case 7:
+	cw[C_PC] = '1';
+	break;
+    case 8:
+	cw[Enable_MDR] = '1';
+	cw[Load_C] = '1'; //lsb of addr that is called
+	break;
+    case 9:
+        cw[Enable_PC] = '1';
+	cw[Load_TMP] = '1'; //lsb of stored addr
+	break;
+    case 10:
+	cw[Upper_Load] = '1';
+	cw[Load_A] = '1'; //msb of stored addr
+	break;
+    case 11:
+	cw[Load_PC_S] = '1';
+	break;
+    case 12:
+	cw[Enable_PC] = '1';
+	cw[Load_MAR] = '1';
+	break;
+    case 13:
+	cw[C_PC] = '1';
+	break;
+    case 14:
+	cw[Enable_A] = '1';
+	cw[Load_MDR] = '1';
+	break;
+    case 15:
+	cw[Enable_PC] = '1';
+	cw[Load_MAR] = '1';
+	break;
+    case 16:
+	cw[Enable_TMP] = '1';
+	cw[Load_MDR] = '1'; //prev addr stored at last two bytes in memory
+	break;
+    case 17:
+	cw[Upper_Enable] = '1';
+	cw[Enable_B] = '1';
+    case 18:
+	cw[Enable_C] = '1';
+	cw[Load_PC] = '1';
 	cs -> ring_counter = 0;
-	return;
+	return;    
+    default:
+	printf("should not be here control_word_CALL\n");
+
     };    
 }
 
@@ -215,9 +269,26 @@ void get_control_word_DCR_C(controller_sequencer *cs, char *cw)
 
 void get_control_word_IN(controller_sequencer *cs, char *cw)
 {
+    	    
     switch(cs -> ring_counter) {
+    case 3:
+	cw[Enable_PC] = '1';
+	cw[Load_MAR] = '1';
+	break;
+    case 4:
+	cw[C_PC] = '1';
+	break;
+    case 5:
+	cw[Enable_MDR] = '1';
+	cw[Load_ir_P] = '1';
+	break;
+    case 6:
+	cw[Enable_IN] = '1';
+	cw[Load_A] = '1';
+	cs -> ring_counter = 0;
+	return;	
     default:
-	printf("implement control_word_IN\n");
+	printf("should not be here control_word_IN\n");
     };    
 }
 
@@ -283,7 +354,8 @@ void get_control_word_JM(controller_sequencer *cs, char *cw)
 	cw[C_PC] = '1';
 	break;
     case 5: //assuming msb then lsb in memory
-	cw[Enable_MDR_U] = '1';
+	cw[Enable_MDR] = '1';
+	cw[Load_TMP] = '1';
 	break;
     case 6:
 	cw[Enable_PC] = '1';
@@ -298,16 +370,17 @@ void get_control_word_JM(controller_sequencer *cs, char *cw)
 	    return;
 	}
 	break;
-	//	cw[Inspect_Sign] = '1';
     case 9:
 	cw[Enable_MDR] = '1';
+	break;
+    case 10:
+	cw[Upper_Enable] = '1';
+	cw[Enable_TMP] = '1';
 	cw[Load_PC] = '1';
 	cs -> ring_counter = 0;
 	return;	    
     default:
 	printf("should not be here control_word_JM\n");
-	cs -> ring_counter = 0;
-	return;
     };    
 }
 
@@ -322,17 +395,19 @@ void get_control_word_JMP(controller_sequencer *cs, char *cw)
 	cw[C_PC] = '1';
 	break;
     case 5: //assuming msb then lsb in memory
-	cw[Enable_MDR_U] = '1';
+	cw[Enable_MDR] = '1';
+	cw[Load_TMP] = '1'; //msb
 	break;
     case 6:
 	cw[Enable_PC] = '1';
-	cw[Load_MAR] = '1';
+	cw[Load_MAR] = '1'; 
 	break;
     case 7:
-	cw[C_PC] = '1';
+	cw[Enable_MDR] = '1';
 	break;
     case 8:
-	cw[Enable_MDR] = '1';
+	cw[Upper_Enable] = '1';
+	cw[Enable_TMP] = '1';
 	cw[Load_PC] = '1';
 	cs -> ring_counter = 0;
 	return;
@@ -352,7 +427,8 @@ void get_control_word_JNZ(controller_sequencer *cs, char *cw)
 	cw[C_PC] = '1';
 	break;
     case 5: //assuming msb then lsb in memory
-	cw[Enable_MDR_U] = '1';
+	cw[Enable_MDR] = '1';
+	cw[Load_TMP] = '1'; //msb
 	break;
     case 6:
 	cw[Enable_PC] = '1';
@@ -367,17 +443,17 @@ void get_control_word_JNZ(controller_sequencer *cs, char *cw)
 	    return;
 	}
 	break;
-	//	cw[Inspect_Zero] = '1';
-	//	cw[Inspect_Inv] = '1';
     case 9:
 	cw[Enable_MDR] = '1';
+	break;
+    case 10:
+	cw[Upper_Enable] = '1';
+	cw[Enable_TMP] = '1';
 	cw[Load_PC] = '1';
 	cs -> ring_counter = 0;
 	return;	    
     default:
 	printf("should not be here control_word_JNZ\n");
-	cs -> ring_counter = 0;
-	return;
     };    
 }
 
@@ -392,7 +468,8 @@ void get_control_word_JZ(controller_sequencer *cs, char *cw)
 	cw[C_PC] = '1';
 	break;
     case 5: //assuming msb then lsb in memory
-	cw[Enable_MDR_U] = '1';
+	cw[Enable_MDR] = '1';
+	cw[Load_TMP] = '1';
 	break;
     case 6:
 	cw[Enable_PC] = '1';
@@ -407,16 +484,17 @@ void get_control_word_JZ(controller_sequencer *cs, char *cw)
 	    return;
 	}
 	break;
-	//	cw[Inspect_Zero] = '1';
     case 9:
 	cw[Enable_MDR] = '1';
+	break;
+    case 10:
+	cw[Upper_Enable] = '1';
+	cw[Enable_TMP] = '1';
 	cw[Load_PC] = '1';
 	cs -> ring_counter = 0;
 	return;	    
     default:
 	printf("should not be here control_word_JZ\n");
-	cs -> ring_counter = 0;
-	return;
     };    
 }
 
@@ -431,7 +509,8 @@ void get_control_word_LDA(controller_sequencer *cs, char *cw)
 	cw[C_PC] = '1';
 	break;
     case 5:
-	cw[Enable_MDR_U] = '1';
+	cw[Enable_MDR] = '1';
+	cw[Load_TMP] = '1';
 	break;
     case 6:
 	cw[Enable_PC] = '1';
@@ -442,16 +521,19 @@ void get_control_word_LDA(controller_sequencer *cs, char *cw)
 	break;
     case 8:
 	cw[Enable_MDR] = '1';
-	cw[Load_MAR] = '1';
 	break;
     case 9:
+	cw[Upper_Enable] = '1';
+	cw[Enable_TMP] = '1';
+	cw[Load_MAR] = '1';
+	break;
+    case 10:
 	cw[Enable_MDR] = '1';
 	cw[Load_A] = '1';
-    default:
-	printf("Implement control_word_LDA\n");
 	cs -> ring_counter = 0;
 	return;
-
+    default:
+	printf("should not be here control_word_LDA\n");
     };    
 }
 
@@ -665,10 +747,23 @@ void get_control_word_ORI(controller_sequencer *cs, char *cw)
 void get_control_word_OUT(controller_sequencer *cs, char *cw)
 {
     switch(cs -> ring_counter) {
-    default:
-	printf("implement control_word_OUT\n");
+    case 3:
+	cw[Enable_PC] = '1';
+	cw[Load_MAR] = '1';
+	break;
+    case 4:
+	cw[C_PC] = '1';
+	break;
+    case 5:
+	cw[Enable_MDR] = '1';
+	cw[Load_ir_P] = '1';
+    case 6:
+	cw[Enable_A] = '1';
+	cw[Load_OUT] = '1';
 	cs -> ring_counter = 0;
 	return;
+    default:
+	printf("should not be here control_word_OUT\n");
     };    
 }
 
@@ -709,10 +804,35 @@ void get_control_word_RAR(controller_sequencer *cs, char *cw)
 void get_control_word_RET(controller_sequencer *cs, char *cw)
 {
     switch(cs -> ring_counter) {
-    default:
-	printf("implement control_word_RET\n");
+    case 3:
+	cw[Load_PC_S] = '1';
+	break;
+    case 4:
+	cw[Enable_PC] = '1';
+	cw[Load_MAR] = '1';
+	break;
+    case 5:
+	cw[C_PC] = '1';
+	break;
+    case 6:
+	cw[Enable_MDR] = '1';
+	cw[Load_A] = '1'; //msb of stored addr
+	break;
+    case 7:
+	cw[Enable_PC] = '1';
+	cw[Load_MAR] = '1';
+	break;
+    case 8:
+	cw[Enable_MDR] = '1';
+	break;
+    case 9:
+	cw[Upper_Enable] = '1';
+	cw[Enable_A] = '1';
+	cw[Load_PC] = '1';
 	cs -> ring_counter = 0;
 	return;
+    default:
+	printf("should not be here control_word_RET\n");
     };    
 }
 
@@ -727,7 +847,8 @@ void get_control_word_STA(controller_sequencer *cs, char *cw)
 	cw[C_PC] = '1';
 	break;
     case 5:
-	cw[Enable_MDR_U] = '1';
+	cw[Enable_MDR] = '1';
+	cw[Load_TMP] = '1';
 	break;
     case 6:
 	cw[Enable_PC] = '1';
@@ -738,9 +859,12 @@ void get_control_word_STA(controller_sequencer *cs, char *cw)
 	break;
     case 8:
 	cw[Enable_MDR] = '1';
+    case 9:
+	cw[Upper_Enable] = '1';
+	cw[Enable_TMP] = '1';
 	cw[Load_MAR] = '1';
 	break;
-    case 9:
+    case 10:
 	cw[Enable_A];
 	cw[Load_MDR];
 	cs -> ring_counter = 0;

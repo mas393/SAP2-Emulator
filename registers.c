@@ -23,7 +23,7 @@ int get_reg_bit(reg *r, int bit_num)
 
 void get_reg(reg *r, char *bits_out, int offset)
 {
-    int s = sizeof(bits_out);
+    int s = r -> size;
     for (int i = s - 1; i >= 0; i--)
 	bits_out[s - i - 1] = get_reg_bit(r, i - offset) ? '1': '0';
     *(bits_out + s) = '\0'; //not sure if needed with passing in strings

@@ -6,20 +6,19 @@
 #include "instructions.h"
 #include "controller_sequencer.h"
 #include "arithmetic_logic_unit.h"
+#include "SAP2_components.h"
 
 #define MEMSIZE 0xFFFF
+#define STORE_LOC 0xFFFD //store addr at 0xFFFD and 0xFFFE b/c mem starts at block 0
 
+//Question: when we jump to a new addr, should we use the A reg to store the addr during the jump proceedure
+//          This would mean our computer does not guarantee that the registers will be maintained when we jump
 //Question: should the instruction register store the other bytes (typically locations) for multi-byte ops
 //Question: how should the program to decide what input/output port to interact with for IN/OUT op
 //Question: how should the program know to store the current program counter in the last mem loc for CALL op
 //TODO: write ALU logic functions
 //TODO: write parsing function load_instructions() to tranlate assembly into machine code
-//TODO: modify input/output control flow
-
-typedef unsigned int program_counter;
-typedef reg port;
-typedef reg bus;
-typedef reg instruction_reg; //should make instruction_reg struct with extra logic for IN/OUT/CALL/RET instructions
+//TODO: make alu functions reset and modify alu flags
 
 typedef struct computer
 {
@@ -75,7 +74,7 @@ void boot_computer(computer *c)
     c -> Output4 = init_reg(8);
     c -> MAR = init_reg(16);
     c -> MDR = init_reg(8);
-    c -> ir = init_reg(8);
+    c -> ir = init_instruction_reg();
     c -> Mem = init_mem(MEMSIZE);
     c -> WBus = init_reg(16);
     c -> ControlBus = init_reg(CONTROL_WORD_SIZE); ///perhaps use bitfield for control bus
@@ -95,7 +94,7 @@ void shutdown_computer(computer *c)
     del_reg(c -> Output4);
     del_reg(c -> MAR);
     del_reg(c -> MDR);
-    del_reg(c -> ir);
+    del_instruction_reg(c -> ir);
     del_mem(c -> Mem);
     del_reg(c -> WBus);
     del_reg(c -> ControlBus);
@@ -106,8 +105,13 @@ void shutdown_computer(computer *c)
 
 void load_instructions(char *filename, computer *c)
 {
+    FILE *fin = fopen(filename, "r");
+
+    char *line = (char*)malloc(50);
+
     
-    printf("load_instructions: to be implemented\n");
+    
+    fclose(fin);
 }
 
 void clock_tick_up(computer *c)
@@ -117,20 +121,32 @@ void clock_tick_up(computer *c)
     //set bus
     char *bus = (char*)malloc(sizeof(c -> WBus));
     memcpy(bus, c -> WBus, sizeof(c -> WBus));
-    //what should be done about the leading 8 bits of the bus that are rarely used?
     //should the actual bus be copied into the bus declared above to preserve the bits?
     //there mus be a better way than repeated if else checking controlbus
+    int offset = 0;
+    if (get_reg_bit(c -> ControlBus, Upper_Enable)) offset = 8;
     
-    if (get_reg_bit(c -> ControlBus, Enable_PC)) printf("implement get_PC\n");
-    else if (get_reg_bit(c -> ControlBus, Enable_MDR)) get_reg(c -> MDR, bus, 0);
-    else if (get_reg_bit(c -> ControlBus, Enable_MDR_U)) get_reg(c -> MDR, bus, 8); // how do we avoid the problem of having to know that the Bus is 16 bits therefore we sould shift the upper value by 8
-    //inputs have additonal control flow that I have not implemented yet
-    else if (get_reg_bit(c -> ControlBus, Enable_I1)) get_reg(c -> Input1, bus, 0);
-    else if (get_reg_bit(c -> ControlBus, Enable_I2)) get_reg(c -> Input2, bus, 0);
-    else if (get_reg_bit(c -> ControlBus, Enable_A)) get_reg(c -> Accumulator, bus, 0);
-    else if (get_reg_bit(c -> ControlBus, Enable_TMP)) get_reg(c -> TMP, bus, 0);
-    else if (get_reg_bit(c -> ControlBus, Enable_B)) get_reg(c -> B, bus, 0);
-    else if (get_reg_bit(c -> ControlBus, Enable_C)) get_reg(c -> C, bus, 0);
+    if (get_reg_bit(c -> ControlBus, Enable_PC)) get_PC(c -> PC, bus);
+    else if (get_reg_bit(c -> ControlBus, Enable_MDR)) get_reg(c -> MDR, bus, offset);
+    else if (get_reg_bit(c -> ControlBus, Enable_IN)) {
+	int p = get_reg_bit(c -> cs -> port, 0)
+	    + get_reg_bit(c -> cs -> port, 1)*2
+	    + get_reg_bit(c -> cs -> port, 2)*4;
+	switch(p) {
+	case 1:
+	    get_reg(c -> Input1, bus, offset);
+	    break;
+	case 2:
+	    get_reg(c -> Input2, bus, offset);
+	    break;
+	default:
+	    printf("input register does not exist\n");
+	}
+    }
+    else if (get_reg_bit(c -> ControlBus, Enable_A)) get_reg(c -> Accumulator, bus, offset);
+    else if (get_reg_bit(c -> ControlBus, Enable_TMP)) get_reg(c -> TMP, bus, offset);
+    else if (get_reg_bit(c -> ControlBus, Enable_B)) get_reg(c -> B, bus, offset);
+    else if (get_reg_bit(c -> ControlBus, Enable_C)) get_reg(c -> C, bus, offset);
     // would there be a better way of checking all the ALU functions as regardless of function the ALU outputs to the bus
     else if (get_reg_bit(c -> ControlBus, Enable_ADD)) addition(c -> ALU, bus);
     else if (get_reg_bit(c -> ControlBus, Enable_SUB)) subtraction(c -> ALU, bus);
@@ -148,27 +164,43 @@ void clock_tick_up(computer *c)
     
     //get bus
     char *r = (char*)malloc(sizeof(c -> Accumulator)); // we know most  registers are 8 bits
-    get_reg(c -> WBus, r, 0);
+    offset = 0;
+    if (get_reg_bit(c -> ControlBus, Upper_Load)) offset = 8;
+    get_reg(c -> WBus, r, offset);
+    
     if (get_reg_bit(c -> ControlBus, Load_PC)) {
 	r = realloc(r, sizeof(c -> PC));
 	get_reg(c -> WBus, r, 0);
-	printf("implement set_PC\n");
+	set_PC(c -> PC, r);
     }
+    else if (get_reg_bit(c -> ControlBus, Load_PC_S)) set_PC_int(c -> PC, STORE_LOC);
     else if (get_reg_bit(c -> ControlBus, Load_MAR)) {
 	r = realloc(r, sizeof(c -> MAR));
 	get_reg(c -> WBus, r, 0);
 	set_reg(c -> MAR, r);
     }
     else if (get_reg_bit(c -> ControlBus, Load_MDR)) set_reg(c -> MDR, r);
-    else if (get_reg_bit(c -> ControlBus, Load_ir)) set_reg(c -> ir, r);
+    else if (get_reg_bit(c -> ControlBus, Load_ir)) set_reg(c -> ir -> instruction, r);
+    else if (get_reg_bit(c -> ControlBus, Load_ir_P)) set_reg(c -> ir -> port, r);
     else if (get_reg_bit(c -> ControlBus, Load_A)) set_reg(c -> Accumulator, r);
     else if (get_reg_bit(c -> ControlBus, Load_TMP)) set_reg(c -> TMP, r);
     else if (get_reg_bit(c -> ControlBus, Load_B)) set_reg(c -> B, r);
     else if (get_reg_bit(c -> ControlBus, Load_C)) set_reg(c -> C, r);
-    //need additional control flow for choosing output register to load
-    //perhaps just output to terminal
-    else if (get_reg_bit(c -> ControlBus, Load_O3)) set_reg(c -> Output3, r);
-    else if (get_reg_bit(c -> ControlBus, Load_O4)) set_reg(c -> Output4, r);
+    else if (get_reg_bit(c -> ControlBus, Load_OUT)) {
+	int p = get_reg_bit(c -> cs -> port, 0)
+	    + get_reg_bit(c -> cs -> port, 1)*2
+	    + get_reg_bit(c -> cs -> port, 2)*4;
+	switch(p) {
+	case 3:
+	    set_reg(c -> Output3, r);
+	    break;
+	case 4:
+	    set_reg(c -> Output4, r);
+	    break;
+	default:
+	    printf("output register does not exist\n");
+	}
+    }
     free(r);
 								    
 }

@@ -3,21 +3,24 @@
 
 #include "registers.h"
 #include "arithmetic_logic_unit.h"
-#define CONTROL_WORD_SIZE 30
+#include "SAP2_components.h"
+#define CONTROL_WORD_SIZE 31
 
 enum control_word_bits {
     //Enable puts value on WBus (lower 8 bits)
     //Load takes value from WBus (lower 8 bits unless loading to PC or MAR, then all 16 bits)
+    Upper_Load, //for enabling or loading
+    Upper_Enable,
     C_PC, //increment pc
     Load_PC,
+    Load_PC_S,
     Enable_PC,
     Load_MAR,
     Load_MDR,
     Enable_MDR,
-    Enable_MDR_U, //loading MRD to WBus Upper 8 bits
-    Enable_I1,
-    Enable_I2,
+    Enable_IN,
     Load_ir,
+    Load_ir_P,
     Load_A,
     Enable_A,
     Load_TMP,
@@ -26,8 +29,7 @@ enum control_word_bits {
     Enable_B,
     Load_C,
     Enable_C,
-    Load_O3,
-    Load_O4,
+    Load_OUT,
     Enable_ADD,
     Enable_SUB,
     Enable_INC,
@@ -38,9 +40,6 @@ enum control_word_bits {
     Enable_RL, //rotate left
     Enable_RR, //rotate right
     Enable_CM, //complement accumulator
-    //    Inspect_Sign,
-    //    Inspect_Zero,
-    //    Inspect_Inv //inspect is naturally looking for a high sign or zero flag, reversed when this is high
 };
 
 typedef struct controller_sequencer
@@ -49,9 +48,10 @@ typedef struct controller_sequencer
     int *sign_signal;
     int *zero_signal;
     reg *instruction;
+    reg *port;
 } controller_sequencer;
 
-controller_sequencer* init_controller_sequencer(reg *ins_reg, arithmetic_logic_unit *alu);
+controller_sequencer* init_controller_sequencer(instruction_reg *ir, arithmetic_logic_unit *alu);
 void del_controller_sequencer(controller_sequencer *cs);
 
 void get_control_word_fetch(controller_sequencer *cs, char *control_word);
