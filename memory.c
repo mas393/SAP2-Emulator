@@ -30,20 +30,19 @@ void get_mem(memory *m, char *addr, char *data_out)
 void print_mem(memory *m, char *start_addr, int num_blocks)
 {
     unsigned int block = strtol(start_addr, 0, 2);
+    printf("start addr = %d\n", block);
     for (int i = 0; i < num_blocks; i++) {
 	// print addresses
-	printf(" ");
+	printf("%d ", block);
 	char data = m -> vals[block];
 	for (int j = BLOCK_SIZE - 1; j >= 0; j--) {
 	    printf("%d", (data >> j & 0x01));
 	    if (j % 4 == 0) printf(" ");
 	}
 	printf("\n");
-	block++;
-	    
+	block++;	    
     }
 }
-
 
 void del_mem(memory *m)
 {

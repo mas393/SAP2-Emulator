@@ -116,7 +116,7 @@ void complement(arithmetic_logic_unit *alu, char *results){
     }
 }
 
-// get_reg_bit(,i) ==
+// get_reg_bit(,i) == reg[size - i - 1]
 void rotate_right(arithmetic_logic_unit *alu, char *results)
 {
     int size = alu -> TMP -> size;
@@ -129,9 +129,12 @@ void rotate_left(arithmetic_logic_unit *alu, char *results)
 {
     int size = alu -> TMP -> size;
     int temp = get_reg_bit(alu -> TMP, size-1);
+    for (int i = 0; i < size-1; i++)
+	results[i] = (get_reg_bit(alu -> TMP, size-i-1)) ? '1':'0';
+    results[size - 1] = temp ? '1':'0';
 }
 void increment(arithmetic_logic_unit *alu, char *results)
-{
+{   
     printf("implement increment\n");
 }
 void decrement(arithmetic_logic_unit *alu, char *results)

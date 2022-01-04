@@ -16,7 +16,7 @@ void del_instruction_reg(instruction_reg *r);
 
 typedef unsigned int program_counter;
 
-void bit_string_from_int(unsigned int val, char *bits_out);
+void bit_string_from_int(unsigned int val, char *bits_out, int size);
 
 void get_PC(program_counter pc, char *bits_out);
 void set_PC(program_counter pc, char *bits_in);

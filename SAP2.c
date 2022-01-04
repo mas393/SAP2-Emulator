@@ -11,14 +11,9 @@
 #define MEMSIZE 0xFFFF
 #define STORE_LOC 0xFFFD //store addr at 0xFFFD and 0xFFFE b/c mem starts at block 0
 
-//Question: when we jump to a new addr, should we use the A reg to store the addr during the jump proceedure
-//          This would mean our computer does not guarantee that the registers will be maintained when we jump
-//Question: should the instruction register store the other bytes (typically locations) for multi-byte ops
-//Question: how should the program to decide what input/output port to interact with for IN/OUT op
-//Question: how should the program know to store the current program counter in the last mem loc for CALL op
 //TODO: write ALU logic functions
-//TODO: write parsing function load_instructions() to tranlate assembly into machine code
 //TODO: make alu functions reset and modify alu flags
+//TODO: check load_computer for each instruction
 
 typedef struct computer
 {
@@ -43,7 +38,7 @@ typedef struct computer
 
 void boot_computer(computer*);
 void shutdown_computer(computer*);
-void load_instructions(char*, computer*);
+int load_instructions(char*, computer*);
 int machine_cycle(computer*);
 void run_program(computer*);
 
@@ -53,8 +48,8 @@ int main(int argc, char **argv)
     char *program = argv[1];
     computer *SAP2 = (computer*)malloc(sizeof(computer));
     boot_computer(SAP2);
-    load_instructions(program, SAP2);
-    run_program(SAP2);
+    if(load_instructions(program, SAP2)) return 1;
+    //run_program(SAP2);
     shutdown_computer(SAP2);
     
     return 0;
@@ -103,15 +98,481 @@ void shutdown_computer(computer *c)
     free(c);
 }
 
-void load_instructions(char *filename, computer *c)
-{
+int load_instructions(char *filename, computer *c)
+{   
     FILE *fin = fopen(filename, "r");
+    fseek(fin, 0, SEEK_END);
+    int fsize = ftell(fin);
+    fseek(fin, 0, SEEK_SET);
 
+    struct label_addr{
+	char *label;
+	int addr;
+    };
+
+    struct label_addr *label_list = (struct label_addr*)malloc(fsize * sizeof(struct label_addr));
+    int label_list_len = 0;
+
+    int addr = 0x0800;
     char *line = (char*)malloc(50);
+    char *line2 = (char*)malloc(50);
+    char label_t[2] = ":";
+    char *label;
+    char ins_t[2] = " ";
+    char *instruction;// = (char*)malloc(5);
+    char args_t[2] = ",";
+    char *args;
+    char *arg1, *arg2;
+    char *opcode = (char*)malloc(8);
+    char *data8 = (char*)malloc(8);
+    char *data16 = (char*)malloc(8);
+    int data_flag = 0;
+    int line_num = 1;
+    
+    while (fgets(line, 50, fin)) {
+	memcpy(line2, line, 50);
+	label = strtok(line2, label_t);
+	//	printf("label = %s, line2 = %s\n", label, line2);
+	if (strlen(label) < strlen(line)) {
+	    //must store label and addr pair for lookup
+	    char *label_cpy = (char *)malloc(sizeof(label));
+	    memcpy(label_cpy, label, sizeof(label));
+	    struct label_addr la;
+	    la.label = label_cpy;
+	    la.addr = addr;
+	    label_list[label_list_len] = la;
+	    label_list_len++;
+	
+	    //printf("label = %s\n", label);
+	    //line += strlen(label);
+	    line = strtok(NULL, label_t); // the instruction will be the second token iff label
+	}
+	line[strlen(line) - 1] = '\0'; //strip newline character
+	instruction = strtok(line, ins_t);
+	args = strtok(NULL, ins_t);
+	//perhaps have to inspect first argument to see if it is key in label key/val pairs and replace arg1
+	arg1 = strtok(args, args_t); //first argument
+	arg2 = strtok(NULL, args_t);
 
-    
-    
+	printf("ins = %s\n", instruction); 
+
+	if (!strcmp(instruction, "ADD")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    if (!strcmp(arg1, "B")) memcpy(opcode, ADD_B, 8);
+	    else if (!strcmp(arg1, "C")) memcpy(opcode, ADD_C, 8);
+	    else {
+		printf("%d: parsing Error: arguments %s not recognized for instruction %s\n",
+		       line_num, arg1, instruction);
+		return 1;
+	    }
+	}
+	else if (!strcmp(instruction, "ANA")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    if (!strcmp(arg1, "B")) memcpy(opcode, ANA_B, 8);
+	    else if (!strcmp(arg1, "C")) memcpy(opcode, ANA_C, 8);
+	    else {
+		printf("%d: parsing Error: arguments %s not recognized for instruction %s\n",
+		       line_num, arg1, instruction);
+		return 1;
+	    }
+	}
+	else if (!strcmp(instruction, "ANI")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, ANI, 8);
+	    int temp;
+	    sscanf(arg1, "%xH", &temp);
+	    if (temp > 0xFF) {
+		printf("%d: parsing error: data byte is too large for instruction %s\n", line_num, instruction);
+		return 1;
+	    }				
+	    bit_string_from_int(temp, data8, 8);
+	    data_flag = 1;
+	}
+	else if (!strcmp(instruction, "CALL")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, CALL, 8);
+	    int temp;
+	    sscanf(arg1, "%xH", &temp);
+
+	    for (int i = 0; i < label_list_len; i++) {
+		if (!strcmp(arg1, label_list[i].label)) temp = label_list[i].addr;
+	    }
+
+	    if (temp > 0xFFFF) {
+		printf("%d: parsing error: data byte is too large for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    
+	    bit_string_from_int((temp & 0xFF), data8, 8);
+	    bit_string_from_int((temp >> 8 & 0xFF), data16, 8);
+	    data_flag = 2;
+	    //  printf("temp = %d, DATA8 = %s, data16 = %s\n", temp, data8, data16);
+	}
+	else if (!strcmp(instruction, "CMA")) {
+	    if (arg1 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, CMA, 8);
+	}
+	else if (!strcmp(instruction, "DCR")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    if (!strcmp(arg1, "A")) memcpy(opcode, DCR_A, 8);
+	    else if (!strcmp(arg1, "B")) memcpy(opcode, DCR_B, 8);
+	    else if (!strcmp(arg1, "C")) memcpy(opcode, DCR_C, 8);
+	    else {
+		printf("%d: parsing Error: arguments %s not recognized for instruction %s\n",
+		       line_num, arg1, instruction);
+		return 1;
+	    }
+	}
+	else if (!strcmp(instruction, "HLT")) {
+	    if (arg1 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, HLT, 8);
+	}
+	else if (!strcmp(instruction, "IN")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, IN, 8);
+	    int temp;
+	    sscanf(arg1, "%xH", &temp);
+	    if (temp > 0x4) {
+		printf("%d: parsing error: data byte is too large for instruction %s\n", line_num, instruction);
+		return 1;
+	    }				
+	    bit_string_from_int(temp, data8, 8);
+	    data_flag = 1;
+	}
+	else if (!strcmp(instruction, "INR")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    if (!strcmp(arg1, "A")) memcpy(opcode, INR_A, 8);
+	    else if (!strcmp(arg1, "B")) memcpy(opcode, INR_B, 8);
+	    else if (!strcmp(arg1, "C")) memcpy(opcode, INR_C, 8);
+	    else {
+		printf("%d: parsing Error: arguments %s not recognized for instruction %s\n",
+		       line_num, arg1, instruction);
+		return 1;
+	    }
+	}
+	else if (!strcmp(instruction, "JM")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, JM, 8);
+	    int temp;
+	    sscanf(arg1, "%xH", &temp);
+
+	    for (int i = 0; i < label_list_len; i++) {
+		if (!strcmp(arg1, label_list[i].label)) temp = label_list[i].addr;
+	    }
+	    
+	    if (temp > 0xFFFF) {
+		printf("%d: parsing error: data byte is too large for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    bit_string_from_int((temp & 0xFF), data8, 8);
+	    bit_string_from_int((temp >> 8 & 0xFF), data16, 8);
+	    data_flag = 2;
+	}
+	else if (!strcmp(instruction, "JMP")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, JMP, 8);
+	    int temp;
+	    sscanf(arg1, "%xH", &temp);
+
+	    for (int i = 0; i < label_list_len; i++) {
+		if (!strcmp(arg1, label_list[i].label)) temp = label_list[i].addr;
+	    }
+	    
+	    if (temp > 0xFFFF) {
+		printf("%d: parsing error: data byte is too large for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    bit_string_from_int((temp & 0xFF), data8, 8);
+	    bit_string_from_int((temp >> 8 & 0xFF), data16, 8);
+	    data_flag = 2;
+	}
+	else if (!strcmp(instruction, "JNZ")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, JNZ, 8);
+	    int temp;
+	    sscanf(arg1, "%xH", &temp);
+
+	    for (int i = 0; i < label_list_len; i++) {
+		if (!strcmp(arg1, label_list[i].label)) temp = label_list[i].addr;
+	    }
+	    
+	    if (temp > 0xFFFF) {
+		printf("%d: parsing error: data byte is too large for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    bit_string_from_int((temp & 0xFF), data8, 8);
+	    bit_string_from_int((temp >> 8 & 0xFF), data16, 8);
+	    data_flag = 2;
+	}
+	else if (!strcmp(instruction, "JZ")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, JZ, 8);
+	    int temp;
+	    sscanf(arg1, "%xH", &temp);
+
+	    for (int i = 0; i < label_list_len; i++) {
+		if (!strcmp(arg1, label_list[i].label)) temp = label_list[i].addr;
+	    }
+	    
+	    if (temp > 0xFFFF) {
+		printf("%d: parsing error: data byte is too large for instruction %s\n", line_num, instruction);
+		return 1;
+	    }				
+	    bit_string_from_int((temp & 0xFF), data8, 8);
+	    bit_string_from_int((temp >> 8 & 0xFF), data16, 8);
+	    data_flag = 2;
+	}
+	else if (!strcmp(instruction, "LDA")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, LDA, 8);
+	    int temp;
+	    sscanf(arg1, "%xH", &temp);
+	    if (temp > 0xFFFF) {
+		printf("%d: parsing error: data byte is too large for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    bit_string_from_int((temp & 0xFF), data8, 8);
+	    bit_string_from_int((temp >> 8 & 0xFF), data16, 8);
+	    data_flag = 2;
+	}
+	else if (!strcmp(instruction, "MOV")) {
+	    if (!strcmp(arg1, "A") && !(strcmp(arg2, "B"))) memcpy(opcode, MOV_AB, 8);
+	    else if (!strcmp(arg1, "A") && !(strcmp(arg2, "C"))) memcpy(opcode, MOV_AC, 8);
+	    else if (!strcmp(arg1, "B") && !(strcmp(arg2, "A"))) memcpy(opcode, MOV_BA, 8);
+	    else if (!strcmp(arg1, "B") && !(strcmp(arg2, "C"))) memcpy(opcode, MOV_BC, 8);
+	    else if (!strcmp(arg1, "C") && !(strcmp(arg2, "A"))) memcpy(opcode, MOV_CA, 8);
+	    else if (!strcmp(arg1, "C") && !(strcmp(arg2, "B"))) memcpy(opcode, MOV_CB, 8);
+	    else {
+		printf("%d: parsing Error: arguments %s, %s not recognized for instruction %s\n",
+		       line_num, arg1, arg2, instruction);
+		return 1;
+	    }
+	}
+	else if (!strcmp(instruction, "MVI")) {
+	    //perhaps check imidiate val first
+	    if (!strcmp(arg1, "A")) memcpy(opcode, MVI_A, 8);
+	    else if (!strcmp(arg1, "B")) memcpy(opcode, MVI_B, 8);
+	    else if (!strcmp(arg1, "C")) memcpy(opcode, MVI_C, 8);
+	    else {
+		printf("%d: parsing Error: arguments %s not recognized for instruction %s\n",
+		       line_num, arg1, instruction);
+		return 1;
+	    }
+	    int temp;
+	    sscanf(arg2, "%xH", &temp);
+	    if (temp > 0xFF) {
+		printf("%d: parsing error: data byte is too large for instruction %s\n", line_num, instruction);
+		return 1;
+	    }				
+	    bit_string_from_int(temp, data8, 8);
+	    data_flag = 1;
+	}
+	else if (!strcmp(instruction, "NOP")) {
+	    if (arg1 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, NOP, 8);
+	}
+	else if (!strcmp(instruction, "ORA")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    if (!strcmp(arg1, "B")) memcpy(opcode, ORA_B, 8);
+	    else if (!strcmp(arg1, "C")) memcpy(opcode, ORA_C, 8);
+	    else {
+		printf("%d: parsing Error: arguments %s not recognized for instruction %s\n",
+		       line_num, arg1, instruction);
+		return 1;
+	    }	    	    
+	}
+	else if (!strcmp(instruction, "ORI")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, ORI, 8);
+	    int temp;
+	    sscanf(arg1, "%xH", &temp);
+	    if (temp > 0xFF) {
+		printf("%d: parsing error: data byte is too large for instruction %s\n", line_num, instruction);
+		return 1;
+	    }				
+	    bit_string_from_int(temp, data8, 8);
+	    data_flag = 1;
+	}
+	else if (!strcmp(instruction, "OUT")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, OUT, 8);
+	    int temp;
+	    sscanf(arg1, "%xH", &temp);
+	    if (temp > 0x4) {
+		printf("%d: parsing error: data byte is too large for instruction %s\n", line_num, instruction);
+		return 1;
+	    }				
+	    bit_string_from_int(temp, data8, 8);
+	    data_flag = 1;
+	}
+	else if (!strcmp(instruction, "RAL")) {
+	    if (arg1 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, RAL, 8);
+	}
+	else if (!strcmp(instruction, "RAR")) {
+	    if (arg1 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, RAR, 8);
+	}
+	else if (!strcmp(instruction, "RET")) {
+	    if (arg1 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, RET, 8);
+	}
+	else if (!strcmp(instruction, "STA")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, STA, 8);
+	    int temp;
+	    sscanf(arg1, "%xH", &temp);
+	    if (temp > 0xFFFF) {
+		printf("%d: parsing error: data byte is too large for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    bit_string_from_int((temp & 0xFF), data8, 8);
+	    bit_string_from_int((temp >> 8 & 0xFF), data16, 8);
+	    data_flag = 2;
+	}
+	else if (!strcmp(instruction, "SUB")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    if (!strcmp(arg1, "B")) memcpy(opcode, SUB_B, 8);
+	    else if (!strcmp(arg1, "C")) memcpy(opcode, SUB_C, 8);
+	    else {
+		printf("%d: parsing Error: arguments %s not recognized for instruction %s\n",
+		       line_num, arg1, instruction);
+		return 1;
+	    }	    	    
+	}
+	else if (!strcmp(instruction, "XRA")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    if (!strcmp(arg1, "B")) memcpy(opcode, XRA_B, 8);
+	    else if (!strcmp(arg1, "C")) memcpy(opcode, XRA_C, 8);
+	    else {
+		printf("%d: parsing Error: arguments %s not recognized for instruction %s\n",
+		       line_num, arg1, instruction);
+		return 1;
+	    }	    	    
+	}
+	else if (!strcmp(instruction, "XRI")) {
+	    if (arg2 != NULL) {
+		printf("%d: parsing error: too many arguments for instruction %s\n", line_num, instruction);
+		return 1;
+	    }
+	    memcpy(opcode, XRI, 8);
+	    int temp;
+	    sscanf(arg1, "%xH", &temp);
+	    if (temp > 0xFF) {
+		printf("%d: parsing error: data byte is too large for instruction %s\n", line_num, instruction);
+		return 1;
+	    }				
+	    bit_string_from_int(temp, data8, 8);
+	    data_flag = 1;
+	}
+
+	char *addr_str = malloc(16);
+	bit_string_from_int(addr, addr_str, 16);
+	printf("opcode = %s\n", opcode);
+	set_mem(c -> Mem, addr_str, opcode);
+	if (data_flag == 2) {
+	    addr++;
+	    bit_string_from_int(addr, addr_str, 16);
+	    set_mem(c -> Mem, addr_str, data16);
+	    addr++;
+	    bit_string_from_int(addr, addr_str, 16);
+	    set_mem(c -> Mem, addr_str, data8);
+	}
+	else if (data_flag == 1) {
+	    addr++;
+	    bit_string_from_int(addr, addr_str, 16);
+	    set_mem(c -> Mem, addr_str, data8);
+	}	
+	data_flag = 0;
+	addr++;
+	line_num++;
+    }
+    //    free(line);
+    //    free(label);
+    //    free(instruction);
+    //    free(args);
+    //    free(arg1);
+    //    free(arg2);
+    //    free(opcode);
+    //    free(data);
+
     fclose(fin);
+    char *add_r = malloc(16);
+    bit_string_from_int(0x0800, add_r, 16);
+    print_mem(c -> Mem, add_r, 10);
+    return 0;
 }
 
 void clock_tick_up(computer *c)
