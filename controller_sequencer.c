@@ -200,13 +200,8 @@ void get_control_word_CALL(controller_sequencer *cs, char *cw)
 
 void get_control_word_CMA(controller_sequencer *cs, char *cw)
 {
-    //perhaps have to perform CMA on the tmp so that its more general
     switch(cs -> ring_counter) {
     case 3:
-	cw[Enable_A] = '1';
-	cw[Load_TMP] = '1';
-	break;
-    case 4:
 	cw[Enable_CM] = '1';
 	cw[Load_A] = '1';
 	cs -> ring_counter = 0;
@@ -296,10 +291,6 @@ void get_control_word_INR_A(controller_sequencer *cs, char *cw)
 {
     switch(cs -> ring_counter) {
     case 3:
-	cw[Enable_A] = '1';
-	cw[Load_TMP] = '1';
-	break;
-    case 4:
 	cw[Enable_INC] = '1';
 	cw[Load_A] = '1';
 	cs -> ring_counter = 0;
@@ -313,11 +304,27 @@ void get_control_word_INR_B(controller_sequencer *cs, char *cw)
 {
     switch(cs -> ring_counter) {
     case 3:
-	cw[Enable_B] = '1';
+	cw[Enable_A] = '1';
 	cw[Load_TMP] = '1';
 	break;
     case 4:
+	cw[Enable_B] = '1';
+	cw[Load_A] = '1';
+	break;
+    case 5:
+	cw[Enable_TMP] = '1';
+	cw[Load_B] = '1';
+	break;
+    case 6:
 	cw[Enable_INC] = '1';
+	cw[Load_TMP] = '1';
+	break;
+    case 7:
+	cw[Enable_B] = '1';
+	cw[Load_A] = '1';
+	break;
+    case 8:
+	cw[Enable_TMP] = '1';
 	cw[Load_B] = '1';
 	cs -> ring_counter = 0;
 	return;
@@ -330,11 +337,27 @@ void get_control_word_INR_C(controller_sequencer *cs, char *cw)
 {
     switch(cs -> ring_counter) {
     case 3:
-	cw[Enable_C] = '1';
+	cw[Enable_A] = '1';
 	cw[Load_TMP] = '1';
 	break;
     case 4:
+	cw[Enable_C] = '1';
+	cw[Load_A] = '1';
+	break;
+    case 5:
+	cw[Enable_TMP] = '1';
+	cw[Load_C] = '1';
+	break;
+    case 6:
 	cw[Enable_INC] = '1';
+	cw[Load_TMP] = '1';
+	break;
+    case 7:
+	cw[Enable_C] = '1';
+	cw[Load_A] = '1';
+	break;
+    case 8:
+	cw[Enable_TMP] = '1';
 	cw[Load_C] = '1';
 	cs -> ring_counter = 0;
 	return;
@@ -771,10 +794,6 @@ void get_control_word_RAL(controller_sequencer *cs, char *cw)
 {
     switch(cs -> ring_counter) {
     case 3:
-	cw[Enable_A] = '1';
-	cw[Load_TMP] = '1';
-	break;
-    case 4:
 	cw[Enable_RL] = '1';
 	cw[Load_A] = '1';
 	cs -> ring_counter = 0;
@@ -788,10 +807,6 @@ void get_control_word_RAR(controller_sequencer *cs, char *cw)
 {
     switch(cs -> ring_counter) {
     case 3:
-	cw[Enable_A] = '1';
-	cw[Load_TMP] = '1';
-	break;
-    case 4:
 	cw[Enable_RR] = '1';
 	cw[Load_A] = '1';
 	cs -> ring_counter = 0;

@@ -11,9 +11,10 @@
 #define MEMSIZE 0xFFFF
 #define STORE_LOC 0xFFFD //store addr at 0xFFFD and 0xFFFE b/c mem starts at block 0
 
-//TODO: write ALU logic functions
-//TODO: make alu functions reset and modify alu flags
 //TODO: check load_computer for each instruction
+//TODO: Connect input/output ports to standard input/output (terminal)
+//TODO: Create boot program with basic routines 
+//TODO: Write computer inspection functions
 
 typedef struct computer
 {
@@ -119,7 +120,7 @@ int load_instructions(char *filename, computer *c)
     char label_t[2] = ":";
     char *label;
     char ins_t[2] = " ";
-    char *instruction;// = (char*)malloc(5);
+    char *instruction;
     char args_t[2] = ",";
     char *args;
     char *arg1, *arg2;
@@ -131,8 +132,9 @@ int load_instructions(char *filename, computer *c)
     
     while (fgets(line, 50, fin)) {
 	memcpy(line2, line, 50);
-	label = strtok(line2, label_t);
+	label = strtok(line2, label_t); //this causes line2 to become label as well?
 	//	printf("label = %s, line2 = %s\n", label, line2);
+
 	if (strlen(label) < strlen(line)) {
 	    //must store label and addr pair for lookup
 	    char *label_cpy = (char *)malloc(sizeof(label));

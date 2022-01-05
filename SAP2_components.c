@@ -19,13 +19,10 @@ void del_instruction_reg(instruction_reg *r)
 
 void bit_string_from_int(unsigned int val, char *bits_out, int size)
 {
-    for (int i = 0; i < size/8; i++)
-	{
-	    char v = (char)(val >> i*8);
-	    for (int j = 0; j < 8; j++) bits_out[size-j-1-i*8] = (v >> j & 0x1 ? '1': '0');
-	}
-    //    char v = (char)val;
-    //    for (int i = 0; i < size; i++) bits_out[size-i-1] = (v >> i & 0x1 ? '1': '0');
+    for (int i = 0; i < size/8; i++){
+	char v = (char)(val >> i*8);
+	for (int j = 0; j < 8; j++) bits_out[size-j-1-i*8] = (v >> j & 0x1 ? '1': '0');
+    }
 }
 
 void get_PC(program_counter pc, char *bits_out)
