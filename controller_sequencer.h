@@ -4,42 +4,42 @@
 #include "registers.h"
 #include "arithmetic_logic_unit.h"
 #include "SAP2_components.h"
-#define CONTROL_WORD_SIZE 31
+#define CONTROL_WORD_SIZE 32
 
 enum control_word_bits {
     //Enable puts value on WBus (lower 8 bits)
     //Load takes value from WBus (lower 8 bits unless loading to PC or MAR, then all 16 bits)
-    Upper_Load, //for enabling or loading
-    Upper_Enable,
-    C_PC, //increment pc
-    Load_PC,
-    Load_PC_S,
-    Enable_PC,
+    Upper_Load,    //0     for enabling or loading 
+    Upper_Enable,  
+    C_PC,          //     increment pc
+    Load_PC,       
+    Load_PC_S,     //4
+    Enable_PC,     
     Load_MAR,
     Load_MDR,
-    Enable_MDR,
+    Enable_MDR,    //8
     Enable_IN,
     Load_ir,
     Load_ir_P,
-    Load_A,
+    Load_A,        //12
     Enable_A,
     Load_TMP,
     Enable_TMP,
-    Load_B,
+    Load_B,        //16
     Enable_B,
     Load_C,
     Enable_C,
-    Load_OUT,
+    Load_OUT,      //20
     Enable_ADD,
     Enable_SUB,
     Enable_INC,
-    Enable_DEC,
+    Enable_DEC,    //24
     Enable_AND,
     Enable_OR,
     Enable_XOR,
-    Enable_RL, //rotate left
-    Enable_RR, //rotate right
-    Enable_CM, //complement accumulator
+    Enable_RL,     //28    rotate left
+    Enable_RR,     //      rotate right
+    Enable_CM,     //      complement accumulator
 };
 
 typedef struct controller_sequencer

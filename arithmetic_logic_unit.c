@@ -111,8 +111,8 @@ void and(arithmetic_logic_unit *alu, char *result)
 {
     int size = alu -> Accumulator -> size;
     for (int i = 0; i < size; i++) {
-	if ((get_reg_bit(alu -> Accumulator, i) && get_reg_bit(alu -> TMP, i))) result[i] = '1';
-	else result[i] = '0';
+	if ((get_reg_bit(alu -> Accumulator, i) && get_reg_bit(alu -> TMP, i))) result[size - i - 1] = '1';
+	else result[size - i - 1] = '0';
     }
     update_flags(alu, result);
 }
@@ -121,8 +121,8 @@ void or(arithmetic_logic_unit *alu, char *result)
 {
     int size = alu -> Accumulator -> size;
     for (int i = 0; i < size; i++) {
-	if ((get_reg_bit(alu -> Accumulator, i) || get_reg_bit(alu -> TMP, i))) result[i] = '1';
-	else result[i] = '0';
+	if ((get_reg_bit(alu -> Accumulator, i) || get_reg_bit(alu -> TMP, i))) result[size - i - 1] = '1';
+	else result[size - i - 1] = '0';
     }
     update_flags(alu, result);
 }
@@ -130,9 +130,9 @@ void xor(arithmetic_logic_unit *alu, char *result)
 {
     int size = alu -> Accumulator -> size;
     for (int i = 0; i < size; i++) {
-	if ((get_reg_bit(alu -> Accumulator, i) && !(get_reg_bit(alu -> TMP, i)))) result[i] = '1';
-	if ((!(get_reg_bit(alu -> Accumulator, i)) && get_reg_bit(alu -> TMP, i))) result[i] = '1';
-	else result[i] = '0';
+	if ((get_reg_bit(alu -> Accumulator, i) && !(get_reg_bit(alu -> TMP, i)))) result[size - i - 1] = '1';
+	if ((!(get_reg_bit(alu -> Accumulator, i)) && get_reg_bit(alu -> TMP, i))) result[size - i - 1] = '1';
+	else result[size - i - 1] = '0';
     }
     update_flags(alu, result);
 }
@@ -140,8 +140,8 @@ void xor(arithmetic_logic_unit *alu, char *result)
 void complement(arithmetic_logic_unit *alu, char *result){ //ones complement
     int size = alu -> Accumulator -> size;
     for (int i = 0; i < size; i++) {
-	if (get_reg_bit(alu -> Accumulator, i)) result[i] = '0';
-	else result[i] = '1';
+	if (get_reg_bit(alu -> Accumulator, i)) result[size - i - 1] = '0';
+	else result[size - i - 1] = '1';
     }
 }
 

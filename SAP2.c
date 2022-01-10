@@ -10,8 +10,10 @@
 
 #define MEMSIZE 0xFFFF
 #define STORE_LOC 0xFFFD //store addr at 0xFFFD and 0xFFFE b/c mem starts at block 0
+#define START_LOC 0x0800
 
 //TODO: check load_computer for each instruction
+//TODO: fix load instruction for base label: HLT
 //TODO: Connect input/output ports to standard input/output (terminal)
 //TODO: Create boot program with basic routines 
 //TODO: Write computer inspection functions
@@ -40,17 +42,25 @@ typedef struct computer
 void boot_computer(computer*);
 void shutdown_computer(computer*);
 int load_instructions(char*, computer*);
-int machine_cycle(computer*);
-void run_program(computer*);
+int machine_cycle(computer*, int);
+void run_program(computer*, int);
+void print_state(computer*, int);
+void print_bus(computer*);
+int user_wait();
+
 
 int main(int argc, char **argv)
 {
     if (argc < 2) {printf("Error: please enter a file for SAP-2 to run\n"); return 1;}
     char *program = argv[1];
+    //could do switch looking for flag
+    int debug_flag = 0;
+    if (*argv[2] == 'h') debug_flag = 2;
+    if (*argv[2] == 'g') debug_flag = 1;
     computer *SAP2 = (computer*)malloc(sizeof(computer));
     boot_computer(SAP2);
     if(load_instructions(program, SAP2)) return 1;
-    //run_program(SAP2);
+    run_program(SAP2, debug_flag);
     shutdown_computer(SAP2);
     
     return 0;
@@ -59,7 +69,7 @@ int main(int argc, char **argv)
 void boot_computer(computer *c)
 {
     //shold we initialize all registers to zero?
-    c -> PC = 0;
+    c -> PC = START_LOC;
     c -> Accumulator = init_reg(8);
     c -> B = init_reg(8);
     c -> C = init_reg(8);
@@ -114,7 +124,7 @@ int load_instructions(char *filename, computer *c)
     struct label_addr *label_list = (struct label_addr*)malloc(fsize * sizeof(struct label_addr));
     int label_list_len = 0;
 
-    int addr = 0x0800;
+    int addr = START_LOC;
     char *line = (char*)malloc(50);
     char *line2 = (char*)malloc(50);
     char label_t[2] = ":";
@@ -134,7 +144,6 @@ int load_instructions(char *filename, computer *c)
 	memcpy(line2, line, 50);
 	label = strtok(line2, label_t); //this causes line2 to become label as well?
 	//	printf("label = %s, line2 = %s\n", label, line2);
-
 	if (strlen(label) < strlen(line)) {
 	    //must store label and addr pair for lookup
 	    char *label_cpy = (char *)malloc(sizeof(label));
@@ -539,6 +548,10 @@ int load_instructions(char *filename, computer *c)
 	    bit_string_from_int(temp, data8, 8);
 	    data_flag = 1;
 	}
+	else {
+	    printf("%d: parsing error: instruction %s not recognized\n", line_num, instruction);
+	    return 1;
+	}
 
 	char *addr_str = malloc(16);
 	bit_string_from_int(addr, addr_str, 16);
@@ -577,21 +590,39 @@ int load_instructions(char *filename, computer *c)
     return 0;
 }
 
+int get_control_word_bit(reg *r, int bit_num)
+{
+    return get_reg_bit(r, CONTROL_WORD_SIZE-bit_num-1);
+}
+
 void clock_tick_up(computer *c)
 {
-    if (get_reg_bit(c -> ControlBus, C_PC)) c -> PC++;
+    if (get_control_word_bit(c -> ControlBus, C_PC)) c -> PC++; //works
     
     //set bus
-    char *bus = (char*)malloc(sizeof(c -> WBus));
-    memcpy(bus, c -> WBus, sizeof(c -> WBus));
+    char *bus = (char*)malloc(c -> WBus -> size);
+    memcpy(bus, c -> WBus, c -> WBus -> size);
     //should the actual bus be copied into the bus declared above to preserve the bits?
     //there mus be a better way than repeated if else checking controlbus
     int offset = 0;
-    if (get_reg_bit(c -> ControlBus, Upper_Enable)) offset = 8;
+    if (get_control_word_bit(c -> ControlBus, Upper_Enable)) offset = 8;
     
-    if (get_reg_bit(c -> ControlBus, Enable_PC)) get_PC(c -> PC, bus);
-    else if (get_reg_bit(c -> ControlBus, Enable_MDR)) get_reg(c -> MDR, bus, offset);
-    else if (get_reg_bit(c -> ControlBus, Enable_IN)) {
+    if (get_control_word_bit(c -> ControlBus, Enable_PC)) get_PC(c -> PC, bus); //works
+	 
+    else if (get_control_word_bit(c -> ControlBus, Enable_MDR)) { //works
+	//when should the MDR change value to that of the memory at the address of MAR
+	char *a = (char*)malloc(c -> MAR -> size);
+	get_reg(c -> MAR, a, 0);
+	char *v = (char*)malloc(c -> MDR -> size);	
+	get_mem(c -> Mem, a, v);
+	set_reg(c -> MDR, v);
+	free(a);
+	free(v);
+	
+	get_reg(c -> MDR, bus, offset);
+	
+    }
+    else if (get_control_word_bit(c -> ControlBus, Enable_IN)) {
 	int p = get_reg_bit(c -> cs -> port, 0)
 	    + get_reg_bit(c -> cs -> port, 1)*2
 	    + get_reg_bit(c -> cs -> port, 2)*4;
@@ -606,50 +637,50 @@ void clock_tick_up(computer *c)
 	    printf("input register does not exist\n");
 	}
     }
-    else if (get_reg_bit(c -> ControlBus, Enable_A)) get_reg(c -> Accumulator, bus, offset);
-    else if (get_reg_bit(c -> ControlBus, Enable_TMP)) get_reg(c -> TMP, bus, offset);
-    else if (get_reg_bit(c -> ControlBus, Enable_B)) get_reg(c -> B, bus, offset);
-    else if (get_reg_bit(c -> ControlBus, Enable_C)) get_reg(c -> C, bus, offset);
+    else if (get_control_word_bit(c -> ControlBus, Enable_A)) get_reg(c -> Accumulator, bus, offset);
+    else if (get_control_word_bit(c -> ControlBus, Enable_TMP)) get_reg(c -> TMP, bus, offset);
+    else if (get_control_word_bit(c -> ControlBus, Enable_B)) get_reg(c -> B, bus, offset);
+    else if (get_control_word_bit(c -> ControlBus, Enable_C)) get_reg(c -> C, bus, offset);
     // would there be a better way of checking all the ALU functions as regardless of function the ALU outputs to the bus
-    else if (get_reg_bit(c -> ControlBus, Enable_ADD)) addition(c -> ALU, bus);
-    else if (get_reg_bit(c -> ControlBus, Enable_SUB)) subtraction(c -> ALU, bus);
-    else if (get_reg_bit(c -> ControlBus, Enable_INC)) increment(c -> ALU, bus);
-    else if (get_reg_bit(c -> ControlBus, Enable_DEC)) decrement(c -> ALU, bus);
-    else if (get_reg_bit(c -> ControlBus, Enable_AND)) and(c -> ALU, bus);
-    else if (get_reg_bit(c -> ControlBus, Enable_OR)) or(c -> ALU, bus);
-    else if (get_reg_bit(c -> ControlBus, Enable_XOR)) xor(c -> ALU, bus);
-    else if (get_reg_bit(c -> ControlBus, Enable_RL)) rotate_right(c -> ALU, bus);
-    else if (get_reg_bit(c -> ControlBus, Enable_RR)) rotate_left(c ->ALU, bus);
-    else if (get_reg_bit(c -> ControlBus, Enable_CM)) complement(c -> ALU, bus);
+    else if (get_control_word_bit(c -> ControlBus, Enable_ADD)) addition(c -> ALU, bus);
+    else if (get_control_word_bit(c -> ControlBus, Enable_SUB)) subtraction(c -> ALU, bus);
+    else if (get_control_word_bit(c -> ControlBus, Enable_INC)) increment(c -> ALU, bus);
+    else if (get_control_word_bit(c -> ControlBus, Enable_DEC)) decrement(c -> ALU, bus);
+    else if (get_control_word_bit(c -> ControlBus, Enable_AND)) and(c -> ALU, bus);
+    else if (get_control_word_bit(c -> ControlBus, Enable_OR)) or(c -> ALU, bus);
+    else if (get_control_word_bit(c -> ControlBus, Enable_XOR)) xor(c -> ALU, bus);
+    else if (get_control_word_bit(c -> ControlBus, Enable_RL)) rotate_right(c -> ALU, bus);
+    else if (get_control_word_bit(c -> ControlBus, Enable_RR)) rotate_left(c ->ALU, bus);
+    else if (get_control_word_bit(c -> ControlBus, Enable_CM)) complement(c -> ALU, bus);
     //else bus is the same as last time
     set_reg(c -> WBus, bus);
     free(bus);
     
     //get bus
-    char *r = (char*)malloc(sizeof(c -> Accumulator)); // we know most  registers are 8 bits
+    char *r = (char*)malloc(c -> Accumulator -> size); // we know most  registers are 8 bits
     offset = 0;
-    if (get_reg_bit(c -> ControlBus, Upper_Load)) offset = 8;
+    if (get_control_word_bit(c -> ControlBus, Upper_Load)) offset = 8;
     get_reg(c -> WBus, r, offset);
     
-    if (get_reg_bit(c -> ControlBus, Load_PC)) {
-	r = realloc(r, sizeof(c -> PC));
+    if (get_control_word_bit(c -> ControlBus, Load_PC)) {
+	r = realloc(r, c -> WBus -> size);
 	get_reg(c -> WBus, r, 0);
 	set_PC(c -> PC, r);
     }
-    else if (get_reg_bit(c -> ControlBus, Load_PC_S)) set_PC_int(c -> PC, STORE_LOC);
-    else if (get_reg_bit(c -> ControlBus, Load_MAR)) {
-	r = realloc(r, sizeof(c -> MAR));
+    else if (get_control_word_bit(c -> ControlBus, Load_PC_S)) set_PC_int(c -> PC, STORE_LOC);
+    else if (get_control_word_bit(c -> ControlBus, Load_MAR)) { //works
+	r = realloc(r, c -> MAR -> size);
 	get_reg(c -> WBus, r, 0);
 	set_reg(c -> MAR, r);
     }
-    else if (get_reg_bit(c -> ControlBus, Load_MDR)) set_reg(c -> MDR, r);
-    else if (get_reg_bit(c -> ControlBus, Load_ir)) set_reg(c -> ir -> instruction, r);
-    else if (get_reg_bit(c -> ControlBus, Load_ir_P)) set_reg(c -> ir -> port, r);
-    else if (get_reg_bit(c -> ControlBus, Load_A)) set_reg(c -> Accumulator, r);
-    else if (get_reg_bit(c -> ControlBus, Load_TMP)) set_reg(c -> TMP, r);
-    else if (get_reg_bit(c -> ControlBus, Load_B)) set_reg(c -> B, r);
-    else if (get_reg_bit(c -> ControlBus, Load_C)) set_reg(c -> C, r);
-    else if (get_reg_bit(c -> ControlBus, Load_OUT)) {
+    else if (get_control_word_bit(c -> ControlBus, Load_MDR)) set_reg(c -> MDR, r);
+    else if (get_control_word_bit(c -> ControlBus, Load_ir)) set_reg(c -> ir -> instruction, r); //works
+    else if (get_control_word_bit(c -> ControlBus, Load_ir_P)) set_reg(c -> ir -> port, r);
+    else if (get_control_word_bit(c -> ControlBus, Load_A)) set_reg(c -> Accumulator, r); //works
+    else if (get_control_word_bit(c -> ControlBus, Load_TMP)) set_reg(c -> TMP, r);
+    else if (get_control_word_bit(c -> ControlBus, Load_B)) set_reg(c -> B, r);
+    else if (get_control_word_bit(c -> ControlBus, Load_C)) set_reg(c -> C, r);
+    else if (get_control_word_bit(c -> ControlBus, Load_OUT)) {
 	int p = get_reg_bit(c -> cs -> port, 0)
 	    + get_reg_bit(c -> cs -> port, 1)*2
 	    + get_reg_bit(c -> cs -> port, 2)*4;
@@ -668,13 +699,15 @@ void clock_tick_up(computer *c)
 								    
 }
 
-int machine_cycle(computer *c)
+int machine_cycle(computer *c, int debug_flags)
 {
+    //printf("MACHINE_CYCLE\n");
+    if (debug_flags == 2) print_state(c, 0);
     char *updated_cw = (char*)malloc(CONTROL_WORD_SIZE);
     memset(updated_cw, '0', CONTROL_WORD_SIZE);
     if (c -> cs -> ring_counter < 3) get_control_word_fetch(c -> cs, updated_cw);
-    else {
-	char *ins = (char*)malloc(sizeof(c -> cs -> instruction));
+    else {	
+	char *ins = (char*)malloc(c -> cs -> instruction -> size);
 	get_reg(c -> cs -> instruction, ins, 0);
 	if (!strcmp(ins, HLT)) {
 	    free(ins);
@@ -683,6 +716,7 @@ int machine_cycle(computer *c)
 	}
 	else if (!strcmp(ins, ADD_B))  get_control_word_ADD_B(c -> cs, updated_cw);
 	else if (!strcmp(ins, ADD_C))  get_control_word_ADD_C(c -> cs, updated_cw);
+	else if (!strcmp(ins, ANA_B))  get_control_word_ANA_B(c -> cs, updated_cw);
 	else if (!strcmp(ins, ANA_C))  get_control_word_ANA_C(c -> cs, updated_cw);
 	else if (!strcmp(ins, ANI))    get_control_word_ANI(c -> cs, updated_cw);
 	else if (!strcmp(ins, CALL))   get_control_word_CALL(c -> cs, updated_cw);
@@ -727,15 +761,61 @@ int machine_cycle(computer *c)
     }
     set_reg(c -> ControlBus, updated_cw);
     free(updated_cw);
+    if (debug_flags == 2) {
+	print_bus(c);
+	if (user_wait()) exit(0);
+    }
     clock_tick_up(c);
     c -> cs -> ring_counter++;
     
     return 0;
 }
 
-void run_program(computer *c)
+
+void run_program(computer *c, int debug_flags)
 {
-    for(;;) if (machine_cycle(c)) break;
-    //perhaps add functions that take inputs here
+    for(;;) {
+	if (machine_cycle(c, debug_flags)) break;
+	//perhaps add functions that take inputs here
+	if (debug_flags == 1) {
+	    if (c -> cs -> ring_counter == 0) {
+		print_state(c, 1);
+		if (user_wait()) exit(0);
+	    }
+	}
+    }
+}
+
+void print_state(computer *c, int clear_flag)
+{
+    if (clear_flag) system("clear");
+    printf("\n");
+    printf("--------------PROGRAM STATE-------------\n");
+    printf("PC = %d\n", c -> PC);
+    printf("Acc = "); print_reg(c -> Accumulator); printf("\n");
+    printf("TMP = "); print_reg(c -> TMP); printf("\n");
+    printf("B   = "); print_reg(c -> B); printf("\n");
+    printf("C   = "); print_reg(c -> C); printf("\n");
+    printf("MAR = "); print_reg(c -> MAR); printf("\n");
+    printf("MDR = "); print_reg(c -> MDR); printf("\n");
+    printf("IR  = "); print_reg(c -> ir -> instruction); printf("\n");
+    
+    printf("\n");
+}
+
+void print_bus(computer *c)
+{
+    printf("\n");
+    printf("WBus: "); print_reg(c -> WBus); printf("\n");
+    printf("CS  : "); print_reg(c -> ControlBus); printf("\n");
+    printf("\n");
+}
+
+int user_wait()
+{
+    printf("RETURN to proceed, q to quit.\n");
+    char c = getchar();
+    if (c == 'q') return 1;
+    return 0;
 }
 
