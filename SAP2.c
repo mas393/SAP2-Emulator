@@ -17,6 +17,7 @@
 //TODO: Connect input/output ports to standard input/output (terminal)
 //TODO: Create boot program with basic routines 
 //TODO: Write computer inspection functions
+//TODO: fix input argument parsing. Currently program crashes if debug argument not supplied.
 
 typedef struct computer
 {
@@ -601,11 +602,15 @@ void clock_tick_up(computer *c)
     
     //set bus
     char *bus = (char*)malloc(c -> WBus -> size);
-    memcpy(bus, c -> WBus, c -> WBus -> size);
+    get_reg(c -> WBus, bus, 0);
     //should the actual bus be copied into the bus declared above to preserve the bits?
     //there mus be a better way than repeated if else checking controlbus
     int offset = 0;
-    if (get_control_word_bit(c -> ControlBus, Upper_Enable)) offset = 8;
+    if (get_control_word_bit(c -> ControlBus, Upper_Enable)) {
+	printf("offset change\n");
+	offset = 8;
+	printf("BUS IS %s\n", bus);	
+    }
     
     if (get_control_word_bit(c -> ControlBus, Enable_PC)) get_PC(c -> PC, bus); //works
 	 
@@ -613,6 +618,7 @@ void clock_tick_up(computer *c)
 	//when should the MDR change value to that of the memory at the address of MAR
 	char *a = (char*)malloc(c -> MAR -> size);
 	get_reg(c -> MAR, a, 0);
+	print_mem(c -> Mem, a, 5);
 	char *v = (char*)malloc(c -> MDR -> size);	
 	get_mem(c -> Mem, a, v);
 	set_reg(c -> MDR, v);
@@ -638,7 +644,7 @@ void clock_tick_up(computer *c)
 	}
     }
     else if (get_control_word_bit(c -> ControlBus, Enable_A)) get_reg(c -> Accumulator, bus, offset);
-    else if (get_control_word_bit(c -> ControlBus, Enable_TMP)) get_reg(c -> TMP, bus, offset);
+    else if (get_control_word_bit(c -> ControlBus, Enable_TMP)) {get_reg(c -> TMP, bus, offset); printf("WHY %d\n", offset);}
     else if (get_control_word_bit(c -> ControlBus, Enable_B)) get_reg(c -> B, bus, offset);
     else if (get_control_word_bit(c -> ControlBus, Enable_C)) get_reg(c -> C, bus, offset);
     // would there be a better way of checking all the ALU functions as regardless of function the ALU outputs to the bus
@@ -649,8 +655,8 @@ void clock_tick_up(computer *c)
     else if (get_control_word_bit(c -> ControlBus, Enable_AND)) and(c -> ALU, bus);
     else if (get_control_word_bit(c -> ControlBus, Enable_OR)) or(c -> ALU, bus);
     else if (get_control_word_bit(c -> ControlBus, Enable_XOR)) xor(c -> ALU, bus);
-    else if (get_control_word_bit(c -> ControlBus, Enable_RL)) rotate_right(c -> ALU, bus);
-    else if (get_control_word_bit(c -> ControlBus, Enable_RR)) rotate_left(c ->ALU, bus);
+    else if (get_control_word_bit(c -> ControlBus, Enable_RL)) rotate_left(c -> ALU, bus);
+    else if (get_control_word_bit(c -> ControlBus, Enable_RR)) rotate_right(c ->ALU, bus);
     else if (get_control_word_bit(c -> ControlBus, Enable_CM)) complement(c -> ALU, bus);
     //else bus is the same as last time
     set_reg(c -> WBus, bus);
@@ -673,7 +679,19 @@ void clock_tick_up(computer *c)
 	get_reg(c -> WBus, r, 0);
 	set_reg(c -> MAR, r);
     }
-    else if (get_control_word_bit(c -> ControlBus, Load_MDR)) set_reg(c -> MDR, r);
+    else if (get_control_word_bit(c -> ControlBus, Load_MDR)) {
+	set_reg(c -> MDR, r);
+	//perhaps add address to memory structure that links to bit string representation of MAR
+	char *a = (char *)malloc(c -> MAR -> size);
+	get_reg(c -> MAR, a, 0);
+	print_mem(c -> Mem, a, 5);
+	char *d = (char *)malloc(c -> MDR -> size);
+	get_reg(c -> MDR, d, 0);
+	set_mem(c -> Mem, a, d);
+	print_mem(c -> Mem, a, 5);
+	free(a);
+	free(d);
+    }
     else if (get_control_word_bit(c -> ControlBus, Load_ir)) set_reg(c -> ir -> instruction, r); //works
     else if (get_control_word_bit(c -> ControlBus, Load_ir_P)) set_reg(c -> ir -> port, r);
     else if (get_control_word_bit(c -> ControlBus, Load_A)) set_reg(c -> Accumulator, r); //works

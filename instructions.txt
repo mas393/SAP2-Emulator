@@ -1,48 +1,50 @@
 #ifndef INSTRUCTIONS
 #define INSTRUCTIONS
 
-#define ADD_B  "10000000"
-#define ADD_C  "10000001"
-#define ANA_B  "10100000"
-#define ANA_C  "10100001"
-#define ANI    "11100110"
+#define ADD_B  "10000000" //works
+#define ADD_C  "10000001" //works
+#define ANA_B  "10100000" //works
+#define ANA_C  "10100001" //works
+#define ANI    "11100110" //works
 #define CALL   "11001101" 
-#define CMA    "00101111"
-#define DCR_A  "00111101"
-#define DCR_B  "00000101"
-#define DCR_C  "00001101"
-#define HLT    "01110110"
+#define CMA    "00101111" //works
+#define DCR_A  "00111101" //works
+#define DCR_B  "00000101" //works
+#define DCR_C  "00001101" //works
+#define HLT    "01110110" //works
 #define IN     "11011011"
-#define INR_A  "00111100" 
-#define INR_B  "00000100"
-#define INR_C  "00001100"
+#define INR_A  "00111100" //works  
+#define INR_B  "00000100" //works
+#define INR_C  "00001100" //works
 #define JM     "11111010" 
 #define JMP    "11000011"
 #define JNZ    "11000010"
 #define JZ     "11001010"
-#define LDA    "00111010"
-#define MOV_AB "01111000"
-#define MOV_AC "01111001"
-#define MOV_BA "01000111"
-#define MOV_BC "01000001"
-#define MOV_CA "01001111"
-#define MOV_CB "01001000"
-#define MVI_A  "00111110"
-#define MVI_B  "00000110"
-#define MVI_C  "00001110"
-#define NOP    "00000000"
-#define ORA_B  "10110000"
-#define ORA_C  "10110001"
-#define ORI    "11110110"
+#define LDA    "00111010" //works
+	       		  //need to test with labels
+#define MOV_AB "01111000" //works
+#define MOV_AC "01111001" //works
+#define MOV_BA "01000111" //works
+#define MOV_BC "01000001" //works
+#define MOV_CA "01001111" //works
+#define MOV_CB "01001000" //works
+#define MVI_A  "00111110" //works
+#define MVI_B  "00000110" //works
+#define MVI_C  "00001110" //works
+#define NOP    "00000000" //works
+#define ORA_B  "10110000" //works
+#define ORA_C  "10110001" //works
+#define ORI    "11110110" //works
 #define OUT    "11010011" 
-#define RAL    "00010111"
-#define RAR    "00011111"
+#define RAL    "00010111" //works
+#define RAR    "00011111" //works
 #define RET    "11001001"
-#define STA    "00110010"
-#define SUB_B  "10010000"
-#define SUB_C  "10010001"
-#define XRA_B  "10101000"
-#define XRA_C  "10101001"
-#define XRI    "11101110"
+#define STA    "00110010" //works
+	       		  //need to test with labels
+#define SUB_B  "10010000" //works
+#define SUB_C  "10010001" //works
+#define XRA_B  "10101000" //works
+#define XRA_C  "10101001" //works
+#define XRI    "11101110" //works
 
 #endif

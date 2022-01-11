@@ -215,10 +215,6 @@ void get_control_word_DCR_A(controller_sequencer *cs, char *cw)
 {
     switch(cs -> ring_counter) {
     case 3:
-	cw[Enable_A] = '1';
-	cw[Load_TMP] = '1';
-	break;
-    case 4:
 	cw[Enable_DEC] = '1';
 	cw[Load_A] = '1';
 	cs -> ring_counter = -1;
@@ -231,12 +227,28 @@ void get_control_word_DCR_A(controller_sequencer *cs, char *cw)
 void get_control_word_DCR_B(controller_sequencer *cs, char *cw)
 {
     switch(cs -> ring_counter) {
-    case 3:
+    case 3:	
 	cw[Enable_B] = '1';
 	cw[Load_TMP] = '1';
 	break;
     case 4:
+	cw[Enable_A] = '1';
+	cw[Load_B] = '1';
+	break;
+    case 5:
+	cw[Enable_TMP] = '1';
+	cw[Load_A] = '1';
+	break;
+    case 6:
 	cw[Enable_DEC] = '1';
+	cw[Load_TMP] = '1';
+	break;
+    case 7:
+	cw[Enable_B] = '1';
+	cw[Load_A] = '1';
+	break;
+    case 8:
+	cw[Enable_TMP] = '1';
 	cw[Load_B] = '1';
 	cs -> ring_counter = -1;
 	return;
@@ -248,12 +260,28 @@ void get_control_word_DCR_B(controller_sequencer *cs, char *cw)
 void get_control_word_DCR_C(controller_sequencer *cs, char *cw)
 {
     switch(cs -> ring_counter) {
-    case 3:
+    case 3:	
 	cw[Enable_C] = '1';
 	cw[Load_TMP] = '1';
 	break;
     case 4:
+	cw[Enable_A] = '1';
+	cw[Load_C] = '1';
+	break;
+    case 5:
+	cw[Enable_TMP] = '1';
+	cw[Load_A] = '1';
+	break;
+    case 6:
 	cw[Enable_DEC] = '1';
+	cw[Load_TMP] = '1';
+	break;
+    case 7:
+	cw[Enable_C] = '1';
+	cw[Load_A] = '1';
+	break;
+    case 8:
+	cw[Enable_TMP] = '1';
 	cw[Load_C] = '1';
 	cs -> ring_counter = -1;
 	return;
@@ -291,6 +319,7 @@ void get_control_word_INR_A(controller_sequencer *cs, char *cw)
 {
     switch(cs -> ring_counter) {
     case 3:
+	printf("INCREMENT\n");
 	cw[Enable_INC] = '1';
 	cw[Load_A] = '1';
 	cs -> ring_counter = -1;
@@ -604,7 +633,7 @@ void get_control_word_MOV_BC(controller_sequencer *cs, char *cw)
     switch(cs -> ring_counter) {
     case 3:
 	cw[Enable_C] = '1';
-	cw[Enable_B] = '1';
+	cw[Load_B] = '1';
 	cs -> ring_counter = -1;
 	return;
     default:
@@ -874,14 +903,15 @@ void get_control_word_STA(controller_sequencer *cs, char *cw)
 	break;
     case 8:
 	cw[Enable_MDR] = '1';
+	break;
     case 9:
 	cw[Upper_Enable] = '1';
 	cw[Enable_TMP] = '1';
 	cw[Load_MAR] = '1';
 	break;
     case 10:
-	cw[Enable_A];
-	cw[Load_MDR];
+	cw[Enable_A] = '1';
+	cw[Load_MDR] = '1';
 	cs -> ring_counter = -1;
 	return;
     default:
@@ -961,7 +991,7 @@ void get_control_word_XRI(controller_sequencer *cs, char *cw)
 {
     switch(cs -> ring_counter) {
     case 3:
-	cw[Enable_C] = '1';
+	cw[Enable_PC] = '1';
 	cw[Load_MAR] = '1';
 	break;
     case 4:
