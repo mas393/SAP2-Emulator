@@ -30,12 +30,12 @@ void get_PC(program_counter pc, char *bits_out)
     bit_string_from_int(pc, bits_out, 16);
 }
 
-void set_PC(program_counter pc, char *bits_in)
+void set_PC(program_counter *pc, char *bits_in)
 {
-    pc = strtol(bits_in, 0, 2);
+    *pc = strtol(bits_in, 0, 2);
 }
 
-void set_PC_int(program_counter pc, int val)
+void set_PC_int(program_counter *pc, int val)
 {
-    pc = val;
+    *pc = val;
 }

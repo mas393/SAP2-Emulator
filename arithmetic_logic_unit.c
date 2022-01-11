@@ -26,16 +26,12 @@ static int negative_check(reg *r){
 
 static void update_flags(arithmetic_logic_unit *alu, char *result)
 {
-    if (result[0] == '1') {
-	printf("NEGATIVE\n");
+    if (result[8] == '1') 
 	alu -> sign_flag = 1;
-    }
     else alu -> sign_flag = 0;
 
-    if (!strcmp(result, "00000000")) {
-	printf("ZERO\n");
-	alu -> zero_flag = 1;
-    }
+    if (!strcmp(result + 8, "00000000")) 
+	alu -> zero_flag = 1;    
     else alu -> zero_flag = 0;
 }
 
@@ -70,15 +66,10 @@ void addition(arithmetic_logic_unit *alu, char *result)
 {
     char carry = 0x0;
     int size = alu -> Accumulator -> size;
-    printf("result = %s\n", result);
     for (int i = 0; i < size; i++){
-	printf("i = %d, carry = %d ", i, carry);
 	char v = add_bits(alu -> Accumulator, alu -> TMP, i, &carry);
-	printf(" v = %c, carry = %d\n", v, carry);
 	result[16 - i - 1] = v;
-	printf("result = %s\n", result);
     }
-    printf("result = %s\n", result);
     update_flags(alu, result);
 }
 
@@ -106,12 +97,6 @@ static void twos_complement(reg *r, char *result)
 
 void subtraction(arithmetic_logic_unit *alu, char *result)
 {
-    //    if (negative_check(alu -> TMP)) {
-    //	printf("NEGATIVE\n");
-    //	for (int i = 0; i < alu -> TMP -> size; i++) printf("i= %d get_reg_bit(i) = %d\n", i, get_reg_bit(alu->TMP, i));
-    //	twos_complement(alu -> TMP, result);
-	
-    //    }
     twos_complement(alu -> TMP, result);
     set_reg(alu -> TMP, result); 
     addition(alu, result);
@@ -135,7 +120,6 @@ void or(arithmetic_logic_unit *alu, char *result)
     for (int i = 0; i < size; i++) {
 	if (get_reg_bit(alu -> Accumulator, i) || get_reg_bit(alu -> TMP, i)) result[16 - i - 1] = '1';
 	else result[16 - i - 1] = '0';
-	printf("%d %s\n", i, result);
     }
     update_flags(alu, result);
 }
@@ -180,7 +164,6 @@ void increment(arithmetic_logic_unit *alu, char *result)
     int size = alu -> TMP -> size;
     memset(result, '0', 16);
     result[16-1] = '1';
-    printf("result %s\n",result);
     set_reg(alu -> TMP, result);
     result[16-1] = '0';
     addition(alu, result);

@@ -19,7 +19,7 @@ typedef unsigned int program_counter;
 void bit_string_from_int(unsigned int val, char *bits_out, int size);
 
 void get_PC(program_counter pc, char *bits_out);
-void set_PC(program_counter pc, char *bits_in);
-void set_PC_int(program_counter pc, int val);
+void set_PC(program_counter *pc, char *bits_in);
+void set_PC_int(program_counter *pc, int val);
 
 #endif

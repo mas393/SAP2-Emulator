@@ -185,10 +185,11 @@ void get_control_word_CALL(controller_sequencer *cs, char *cw)
 	cw[Load_MDR] = '1'; //prev addr stored at last two bytes in memory
 	break;
     case 17:
-	cw[Upper_Enable] = '1';
-	cw[Enable_B] = '1';
-    case 18:
 	cw[Enable_C] = '1';
+	break;
+    case 18:
+	cw[Upper_Enable] = '1';
+	cw[Enable_B] = '1';	
 	cw[Load_PC] = '1';
 	cs -> ring_counter = -1;
 	return;    
@@ -319,7 +320,6 @@ void get_control_word_INR_A(controller_sequencer *cs, char *cw)
 {
     switch(cs -> ring_counter) {
     case 3:
-	printf("INCREMENT\n");
 	cw[Enable_INC] = '1';
 	cw[Load_A] = '1';
 	cs -> ring_counter = -1;
@@ -809,6 +809,7 @@ void get_control_word_OUT(controller_sequencer *cs, char *cw)
     case 5:
 	cw[Enable_MDR] = '1';
 	cw[Load_ir_P] = '1';
+	break;
     case 6:
 	cw[Enable_A] = '1';
 	cw[Load_OUT] = '1';
